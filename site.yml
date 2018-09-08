@@ -1,0 +1,76 @@
+# Ansible Playbook for Subutai Nextcloud blueprint
+---
+
+- hosts: all
+  gather_facts: false
+  remote_user: root
+  tasks: 
+
+    - name: Update
+      raw: apt-get -y update || true
+
+    - name: Upgrade
+      raw: apt-get -y upgrade
+
+- hosts: all
+  remote_user: root
+  tasks: 
+
+    - name: Install required debs
+      apt: 
+        name: "{{ item }}"
+        state: present
+        allow_unauthenticated: yes
+      with_items: 
+        - php7.0
+        - php7.0-cgi
+        - php7.0-mysql
+        - php7.0-zip
+        - php7.0-dom
+        - php7.0-xmlwriter
+        - php7.0-xmlreader
+        - php7.0-xml
+        - php7.0-mbstring
+        - php7.0-gd
+        - php7.0-curl
+        - apache2
+        - libapache2-mod-php7.0
+        - unzip 
+        - mariadb-server
+        - python-mysqldb
+
+    - name: Create database
+      mysql_db: 
+        name: "{{ db }}"
+        state: present
+        encoding: utf8
+
+    - name: Create database user
+      mysql_user: 
+        name: "{{ db_user }}"
+        password: "{{ db_pwd }}"
+        priv: "{{ db }}.*:ALL"
+
+    - name: Download and unzip nextcloud
+      unarchive: 
+        src: "http://download.nextcloud.com/server/releases/nextcloud-13.0.2.zip"
+        dest: "/tmp"
+        remote_src: yes
+        validate_certs: no
+
+    - name: Move files
+      command: bash -c "mv /tmp/nextcloud/* /var/www/html/"
+
+    - name: Change file ownership
+      file: 
+        path: /var/www/html
+        recurse: yes
+        owner: www-data
+        group: www-data
+
+    - name: Restart apache
+      service: 
+        name: apache2
+        state: restarted
+        
+# vim: ts=2 et nowrap autoindent
